@@ -1,2 +1,2 @@
 # jms-lab
-JMS lab
+JMS lab - integration with Apache ActiveMQ Artemis
