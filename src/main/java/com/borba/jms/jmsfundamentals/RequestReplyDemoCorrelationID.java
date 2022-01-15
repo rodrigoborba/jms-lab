@@ -1,5 +1,8 @@
 package com.borba.jms.jmsfundamentals;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import javax.jms.JMSConsumer;
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
@@ -16,7 +19,7 @@ import org.apache.activemq.artemis.jms.client.ActiveMQConnectionFactory;
  * @author rodri
  *
  */
-public class RequestReplyDemo {
+public class RequestReplyDemoCorrelationID {
 	
 	
 	public static void main(String[] args) throws NamingException {
@@ -32,22 +35,27 @@ public class RequestReplyDemo {
 			TextMessage message = jmsContext.createTextMessage("test sending message");
 			message.setJMSReplyTo(replyQueue);
 			producer.send(queue, message);
+			System.out.println("message request ID " + message.getJMSMessageID());
 			
 			JMSConsumer consumer = jmsContext.createConsumer(queue);
 			TextMessage messageReceived = (TextMessage) consumer.receive();
 			System.out.println(messageReceived.getText());
 			
-			/**
-			 * 
-			 */
+			Map<String, TextMessage> requestMessages = new HashMap<>();
+			requestMessages.put(message.getJMSMessageID(), messageReceived);
 			
 			JMSProducer replyProducer = jmsContext.createProducer();
-			replyProducer.send(messageReceived.getJMSReplyTo(), "reply message");
+			TextMessage replyMessage = jmsContext.createTextMessage("reply message");
+			replyMessage.setJMSCorrelationID(messageReceived.getJMSMessageID());
+			
+			replyProducer.send(messageReceived.getJMSReplyTo(), replyMessage);
 			
 			JMSConsumer replyConsumer = jmsContext.createConsumer(replyQueue);
 			
-			String messageReceivedReply = replyConsumer.receiveBody(String.class);
-			System.out.println(messageReceivedReply);
+			TextMessage messageReceivedReply = (TextMessage) replyConsumer.receive();
+			System.out.println("reply correlation ID " + messageReceivedReply.getJMSCorrelationID());
+			
+			System.out.println(requestMessages.get(replyMessage.getJMSCorrelationID()).getText());
 			
 		} catch (JMSException e) {
 			e.printStackTrace();
